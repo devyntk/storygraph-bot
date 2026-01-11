@@ -1,11 +1,10 @@
 import re
-from logging import log
-from pprint import pprint
 
 from bs4 import Tag
 
 from storygraph_bot.flare_client import FlareClient
 from storygraph_bot.news_parser import NewsItem, parse_news_item
+from storygraph_bot.util import canonicalize_url
 
 
 def _get_authenticity_token(tag: Tag) -> str:
@@ -14,47 +13,55 @@ def _get_authenticity_token(tag: Tag) -> str:
         raise ValueError("Could not find Authenticity Token")
     return str(authenticity_input.attrs.get("value"))
 
+
 class StorygraphClient:
 
     def __init__(self):
-        self.client = FlareClient()
+        self.client = None
 
     async def setup(self):
+        self.client = FlareClient()
         await self.client.setup()
 
-
     async def close(self):
+        assert self.client is not None
         await self.client.close()
 
-
     async def log_in(self, username: str, password: str):
-        login_page = await self.client.get("https://app.thestorygraph.com/users/sign_in")
+        assert self.client is not None
+        login_page = await self.client.get(
+            "https://app.thestorygraph.com/users/sign_in"
+        )
 
-        await self.client.post("https://app.thestorygraph.com/users/sign_in", {
-            "authenticity_token": _get_authenticity_token(login_page),
-            "user[email]": username,
-            "user[password]": password,
-            "user[remember_me]": "1",
-            "return_to": "",
-        })
+        await self.client.post(
+            "https://app.thestorygraph.com/users/sign_in",
+            {
+                "authenticity_token": _get_authenticity_token(login_page),
+                "user[email]": username,
+                "user[password]": password,
+                "user[remember_me]": "1",
+                "return_to": "",
+            },
+        )
 
     async def accept_all_friend_requests(self):
-        notifications = await self.client.get("https://app.thestorygraph.com/notifications")
-        accept_buttons = notifications.find_all("form", action=re.compile(".*accept-friend-request-from-notification.*"))
+        assert self.client is not None
+        notifications = await self.client.get(
+            "https://app.thestorygraph.com/notifications"
+        )
+        accept_buttons = notifications.find_all(
+            "form", action=re.compile(".*accept-friend-request-from-notification.*")
+        )
         for button in accept_buttons:
-            url = f"https://app.thestorygraph.com{button.attrs.get("action")}"
+            url = canonicalize_url(str(button.attrs.get("action")))
             token = _get_authenticity_token(button)
             print(url, token)
-            print(self.client.post(
-                url,
-                {"authenticity_token": token}
-            ))
+            print(self.client.post(url, {"authenticity_token": token}))
 
     async def get_community_activity(self) -> list[NewsItem]:
+        assert self.client is not None
         community = await self.client.get("https://app.thestorygraph.com/community")
         news_feed = community.find(class_="news-feed-item-panes")
         if news_feed is None:
             raise ValueError
         return [parse_news_item(child) for child in news_feed.find_all(recursive=False)]
-
-

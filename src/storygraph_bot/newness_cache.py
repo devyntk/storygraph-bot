@@ -2,9 +2,10 @@ import json
 import dataclasses
 
 import aiofiles
+import json_tricks
 
 from storygraph_bot.news_parser import NewsItem
-from storygraph_bot.settings import settings
+from storygraph_bot.settings import SETTINGS
 
 
 class NewnessCache:
@@ -15,14 +16,14 @@ class NewnessCache:
         self.seen: set = set()
 
     async def filter_seen(self, items: list[NewsItem]) -> list[NewsItem]:
-        if not settings.seen_db.exists():
-            async with aiofiles.open(settings.seen_db, "w") as f:
+        if not SETTINGS.seen_db.exists():
+            async with aiofiles.open(SETTINGS.seen_db, "w") as f:
                 await f.write("[]")
 
         new_items = []
-        async with aiofiles.open(settings.seen_db, "r+") as f:
+        async with aiofiles.open(SETTINGS.seen_db, "r+") as f:
             try:
-                for seen_item in json.loads((await f.read()).strip()):
+                for seen_item in json_tricks.loads((await f.read()).strip()):
                     db_item = NewsItem(**seen_item)
                     self.seen.add(db_item)
             except json.JSONDecodeError as e:
@@ -44,7 +45,7 @@ class NewnessCache:
                     self.seen.add(item)
 
             await f.seek(0)
-            await f.write(json.dumps([dataclasses.asdict(o) for o in self.seen]))
+            await f.write(json_tricks.dumps([dataclasses.asdict(o) for o in self.seen]))
             await f.truncate()
 
         return new_items

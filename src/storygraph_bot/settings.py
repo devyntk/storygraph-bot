@@ -13,4 +13,6 @@ class Settings(BaseSettings):
 
     seen_db: Path = Path("news.db")
 
-settings = Settings()  # pyright: ignore
+    flaresolverr_url: str = "http://localhost:8191/"
+
+SETTINGS = Settings()  # pyright: ignore

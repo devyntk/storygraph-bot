@@ -1,14 +1,16 @@
+from datetime import datetime
 import re
 from dataclasses import dataclass, field
-from urllib.parse import urlparse
 
 from bs4 import Tag
 from discord import Embed
+import dateparser
 
+from storygraph_bot.util import canonicalize_url
 
 @dataclass(unsafe_hash=True)
 class NewsItem:
-    id: str = field(hash=False)
+    id: str = field(hash=False, compare=False)
 
     username: str
     profile_link: str
@@ -26,16 +28,14 @@ class NewsItem:
 
     action: str
 
-
-def canonicalize_url(url_in: str) -> str:
-    url = urlparse(url_in, scheme="https")
-    if not url.netloc:
-        url = url._replace(netloc="app.thestorygraph.com")
-    return url.geturl()
+    timestamp: datetime | None = field(hash=False, compare=False, default=None)
 
 
 def parse_news_item(tag: Tag) -> NewsItem:
     id = str(tag.attrs.get("data-news-feed-item-id"))
+
+    first_string = [str(o) for o in tag.strings if str(o).strip()][0]
+    timestamp =  dateparser.parse(first_string, languages=["en"])
 
     profile_link_tag = tag.find("a", href=re.compile("profile"))
     assert profile_link_tag is not None
@@ -95,6 +95,7 @@ def parse_news_item(tag: Tag) -> NewsItem:
 
     return NewsItem(
         id=id,
+        timestamp=timestamp,
         profile_link=canonicalize_url(profile_link),
         profile_image_url=profile_img_url,
         username=username,
@@ -114,6 +115,7 @@ def render_news_item(item: NewsItem) -> Embed:
     embed = Embed(
         title=item.book_name,
         url=item.review_link or item.book_link,
+        timestamp=item.timestamp,
     )
     embed.set_thumbnail(url=item.book_cover_url)
     embed.set_author(

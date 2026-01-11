@@ -1,22 +1,24 @@
-from httpx import AsyncClient
 from bs4 import BeautifulSoup
 from urllib.parse import urlencode
+from aiohttp import ClientSession
+
+from storygraph_bot.settings import SETTINGS
 
 class FlareClient:
 
     def __init__(self):
-        self.client = AsyncClient(base_url="http://localhost:8191/")
         self.session = None
 
     async def setup(self):
-        sess_req = (await self.client.post("v1", json={"cmd": "sessions.create"})).json()
+        self.client = ClientSession(base_url=SETTINGS.flaresolverr_url)
+        sess_req = await (await self.client.post("v1", json={"cmd": "sessions.create"})).json()
         self.session = sess_req["session"]
         print(sess_req)
 
     async def close(self):
         sess_req = await self.client.post("v1", json={"cmd": "sessions.destroy", "session": self.session})
-        print(sess_req.json())
-        await self.client.aclose()
+        print(await sess_req.json())
+        await self.client.close()
 
     async def _req(self, cmd: str, args: dict = {}) -> BeautifulSoup:
         req = await self.client.post("v1", json={
@@ -25,7 +27,7 @@ class FlareClient:
             **args
         })
         try:
-            html = req.json()["solution"]["response"]
+            html = (await req.json())["solution"]["response"]
         except KeyError:
             print("Cannot parse flaresolverr response: ", req.json())
             raise KeyError
