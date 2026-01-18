@@ -1,3 +1,4 @@
+import logging
 import re
 
 from bs4 import Tag
@@ -16,14 +17,19 @@ def _get_authenticity_token(tag: Tag) -> str:
 
 class StorygraphClient:
 
-    async def setup(self):
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
         self.client = FlareClient()
+
+    async def setup(self):
         await self.client.setup()
 
     async def close(self):
-        await self.client.close()
+        if self.client:
+            await self.client.close()
 
     async def log_in(self, username: str, password: str):
+        self.logger.info("Logging into storygraph user %s", username)
         login_page = await self.client.get(
             "https://app.thestorygraph.com/users/sign_in"
         )
@@ -49,10 +55,10 @@ class StorygraphClient:
         for button in accept_buttons:
             url = canonicalize_url(str(button.attrs.get("action")))
             token = _get_authenticity_token(button)
-            print(url, token)
-            print(self.client.post(url, {"authenticity_token": token}))
+            await self.client.post(url, {"authenticity_token": token})
 
     async def get_community_activity(self) -> list[NewsItem]:
+        self.logger.info("Fetching community activity")
         community = await self.client.get("https://app.thestorygraph.com/community")
         news_feed = community.find(class_="news-feed-item-panes")
         assert assert_tag(news_feed)

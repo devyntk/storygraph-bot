@@ -8,31 +8,18 @@ from storygraph_bot.settings import SETTINGS
 from storygraph_bot.storygraph_client import StorygraphClient
 
 
-class StorygraphBot(discord.Client):
-    # Suppress error on the User attribute being None since it fills up later
-    user: discord.ClientUser  # pyright: ignore
-
+class StorygraphBot(discord.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.storygraph = StorygraphClient()
         self.newness = NewnessCache()
-
-    async def setup_hook(self) -> None:
-        await self.storygraph.setup()
-        await self.storygraph.log_in(SETTINGS.storygraph_email, SETTINGS.storygraph_password)
-        # start the task to run in the background
         self.check_for_new_items.start()
         self.check_for_new_items.add_exception_type(FlareError)
 
     async def close(self):
-        # do your cleanup here
         await self.storygraph.close()
+        await super().close()
 
-        await super().close()  # don't forget this!
-
-    async def on_ready(self):
-        print(f'Logged in as {self.user} (ID: {self.user.id})')
-        print('------')
 
     @tasks.loop(seconds=60)
     async def check_for_new_items(self):
@@ -47,4 +34,7 @@ class StorygraphBot(discord.Client):
 
     @check_for_new_items.before_loop
     async def before_my_task(self):
+        print("here")
+        await self.storygraph.setup()
+        await self.storygraph.log_in(SETTINGS.storygraph_email, SETTINGS.storygraph_password)
         await self.wait_until_ready()  # wait until the bot logs in

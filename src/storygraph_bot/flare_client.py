@@ -1,3 +1,4 @@
+import logging
 from bs4 import BeautifulSoup
 from urllib.parse import urlencode
 from aiohttp import ClientSession, ClientError
@@ -10,20 +11,23 @@ class FlareError(Exception):
 class FlareClient:
 
     def __init__(self):
+        self.logger = logging.getLogger(__name__)
         self.session = None
+        self.client = None
 
     async def setup(self):
         self.client = ClientSession(base_url=SETTINGS.flaresolverr_url)
         sess_req = await (await self.client.post("v1", json={"cmd": "sessions.create"})).json()
         self.session = sess_req["session"]
-        print(sess_req)
+        self.logger.info("established flaresolverr session %s", self.session)
 
     async def close(self):
-        sess_req = await self.client.post("v1", json={"cmd": "sessions.destroy", "session": self.session})
-        print(await sess_req.json())
-        await self.client.close()
+        if self.client is not None:
+            await self.client.post("v1", json={"cmd": "sessions.destroy", "session": self.session})
+            await self.client.close()
 
     async def _req(self, cmd: str, args: dict = {}) -> BeautifulSoup:
+        assert self.client is not None
         try:
             req = await self.client.post("v1", json={
                 "cmd": cmd,
@@ -35,7 +39,7 @@ class FlareClient:
         try:
             html = (await req.json())["solution"]["response"]
         except KeyError as e:
-            print("Cannot parse flaresolverr response: ", req.json())
+            self.logger.exception("Cannot parse flaresolverr response")
             raise FlareError from e
         return BeautifulSoup(html, "lxml")
 

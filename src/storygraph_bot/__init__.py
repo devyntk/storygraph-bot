@@ -1,9 +1,9 @@
-import discord
+import logging
 
+from storygraph_bot.discord.commands import bot
 from storygraph_bot.settings import SETTINGS
-from storygraph_bot.bot import StorygraphBot
 
+logging.basicConfig(level=logging.INFO)
 
 def main():
-    client = StorygraphBot(intents=discord.Intents.default())
-    client.run(SETTINGS.discord_token)
+    bot.run(SETTINGS.discord_token)
