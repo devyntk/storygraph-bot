@@ -1,6 +1,7 @@
 import discord
 from discord.ext import tasks
 
+from storygraph_bot.flare_client import FlareError
 from storygraph_bot.newness_cache import NewnessCache
 from storygraph_bot.news_parser import render_news_item
 from storygraph_bot.settings import SETTINGS
@@ -20,7 +21,8 @@ class StorygraphBot(discord.Client):
         await self.storygraph.setup()
         await self.storygraph.log_in(SETTINGS.storygraph_email, SETTINGS.storygraph_password)
         # start the task to run in the background
-        self.my_background_task.start()
+        self.check_for_new_items.start()
+        self.check_for_new_items.add_exception_type(FlareError)
 
     async def close(self):
         # do your cleanup here
@@ -32,17 +34,17 @@ class StorygraphBot(discord.Client):
         print(f'Logged in as {self.user} (ID: {self.user.id})')
         print('------')
 
-    @tasks.loop(seconds=15)
-    async def my_background_task(self):
+    @tasks.loop(seconds=60)
+    async def check_for_new_items(self):
         channel = self.get_channel(SETTINGS.discord_channel)
         # Tell the type checker that this is a messageable channel
         assert isinstance(channel, discord.abc.Messageable)
 
         news = await self.storygraph.get_community_activity()
-        for item in await self.newness.filter_seen(news):
+        async for item in self.newness.filter_seen(news):
             await channel.send(embed=render_news_item(item))
 
 
-    @my_background_task.before_loop
+    @check_for_new_items.before_loop
     async def before_my_task(self):
         await self.wait_until_ready()  # wait until the bot logs in

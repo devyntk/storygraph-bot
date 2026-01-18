@@ -1,5 +1,6 @@
 import json
 import dataclasses
+from typing import AsyncIterator
 
 import aiofiles
 import json_tricks
@@ -15,12 +16,11 @@ class NewnessCache:
         self.first_run = True
         self.seen: set = set()
 
-    async def filter_seen(self, items: list[NewsItem]) -> list[NewsItem]:
+    async def filter_seen(self, items: list[NewsItem]) -> AsyncIterator[NewsItem]:
         if not SETTINGS.seen_db.exists():
             async with aiofiles.open(SETTINGS.seen_db, "w") as f:
                 await f.write("[]")
 
-        new_items = []
         async with aiofiles.open(SETTINGS.seen_db, "r+") as f:
             try:
                 for seen_item in json_tricks.loads((await f.read()).strip()):
@@ -41,11 +41,9 @@ class NewnessCache:
 
             for item in items:
                 if item not in self.seen:
-                    new_items.append(item)
+                    yield item
                     self.seen.add(item)
 
             await f.seek(0)
-            await f.write(json_tricks.dumps([dataclasses.asdict(o) for o in self.seen]))
+            await f.write(json_tricks.dumps([dataclasses.asdict(o) for o in self.seen], indent=4))
             await f.truncate()
-
-        return new_items

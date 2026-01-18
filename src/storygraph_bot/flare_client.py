@@ -1,8 +1,11 @@
 from bs4 import BeautifulSoup
 from urllib.parse import urlencode
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientError
 
 from storygraph_bot.settings import SETTINGS
+
+class FlareError(Exception):
+    pass
 
 class FlareClient:
 
@@ -21,16 +24,19 @@ class FlareClient:
         await self.client.close()
 
     async def _req(self, cmd: str, args: dict = {}) -> BeautifulSoup:
-        req = await self.client.post("v1", json={
-            "cmd": cmd,
-            "session": self.session,
-            **args
-        })
+        try:
+            req = await self.client.post("v1", json={
+                "cmd": cmd,
+                "session": self.session,
+                **args
+            })
+        except ClientError as e:
+            raise FlareError from e
         try:
             html = (await req.json())["solution"]["response"]
-        except KeyError:
+        except KeyError as e:
             print("Cannot parse flaresolverr response: ", req.json())
-            raise KeyError
+            raise FlareError from e
         return BeautifulSoup(html, "lxml")
 
     async def get(self, url) -> BeautifulSoup:

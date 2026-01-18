@@ -4,7 +4,7 @@ from bs4 import Tag
 
 from storygraph_bot.flare_client import FlareClient
 from storygraph_bot.news_parser import NewsItem, parse_news_item
-from storygraph_bot.util import canonicalize_url
+from storygraph_bot.util import assert_tag, canonicalize_url
 
 
 def _get_authenticity_token(tag: Tag) -> str:
@@ -16,19 +16,14 @@ def _get_authenticity_token(tag: Tag) -> str:
 
 class StorygraphClient:
 
-    def __init__(self):
-        self.client = None
-
     async def setup(self):
         self.client = FlareClient()
         await self.client.setup()
 
     async def close(self):
-        assert self.client is not None
         await self.client.close()
 
     async def log_in(self, username: str, password: str):
-        assert self.client is not None
         login_page = await self.client.get(
             "https://app.thestorygraph.com/users/sign_in"
         )
@@ -45,7 +40,6 @@ class StorygraphClient:
         )
 
     async def accept_all_friend_requests(self):
-        assert self.client is not None
         notifications = await self.client.get(
             "https://app.thestorygraph.com/notifications"
         )
@@ -59,9 +53,7 @@ class StorygraphClient:
             print(self.client.post(url, {"authenticity_token": token}))
 
     async def get_community_activity(self) -> list[NewsItem]:
-        assert self.client is not None
         community = await self.client.get("https://app.thestorygraph.com/community")
         news_feed = community.find(class_="news-feed-item-panes")
-        if news_feed is None:
-            raise ValueError
+        assert assert_tag(news_feed)
         return [parse_news_item(child) for child in news_feed.find_all(recursive=False)]
