@@ -1,12 +1,21 @@
 import logging
-from bs4 import BeautifulSoup
+from dataclasses import dataclass
+from http import HTTPStatus
 from urllib.parse import urlencode
-from aiohttp import ClientSession, ClientError
+
+from aiohttp import ClientError, ClientSession
+from bs4 import BeautifulSoup
 
 from storygraph_bot.settings import SETTINGS
 
+
 class FlareError(Exception):
     pass
+
+@dataclass()
+class FlareResponse:
+    body: BeautifulSoup
+    status: HTTPStatus
 
 class FlareClient:
 
@@ -24,9 +33,10 @@ class FlareClient:
     async def close(self):
         if self.client is not None:
             await self.client.post("v1", json={"cmd": "sessions.destroy", "session": self.session})
+            self.logger.info("destroyed flaresolverr session %s", self.session)
             await self.client.close()
 
-    async def _req(self, cmd: str, args: dict = {}) -> BeautifulSoup:
+    async def _req(self, cmd: str, args: dict = {}) -> FlareResponse:
         assert self.client is not None
         try:
             req = await self.client.post("v1", json={
@@ -37,14 +47,18 @@ class FlareClient:
         except ClientError as e:
             raise FlareError from e
         try:
-            html = (await req.json())["solution"]["response"]
+            res = await req.json()
+            html = res["solution"]["response"]
         except KeyError as e:
             self.logger.exception("Cannot parse flaresolverr response")
             raise FlareError from e
-        return BeautifulSoup(html, "lxml")
+        return FlareResponse(
+            body = BeautifulSoup(html, "lxml"),
+            status = HTTPStatus(res["solution"]["status"])
+        )
 
-    async def get(self, url) -> BeautifulSoup:
+    async def get(self, url) -> FlareResponse:
         return await self._req("request.get", {"url": url})
 
-    async def post(self, url: str, data: dict[str, str], args: dict = {}) -> BeautifulSoup:
+    async def post(self, url: str, data: dict[str, str], args: dict = {}) -> FlareResponse:
         return await self._req("request.post", {"url": url, "postData": urlencode(data), **args})

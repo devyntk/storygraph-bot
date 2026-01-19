@@ -47,5 +47,5 @@ class NewnessCache:
                     self.seen.add(item)
 
             await f.seek(0)
-            await f.write(json_tricks.dumps([dataclasses.asdict(o) for o in self.seen], indent=4))
+            await f.write(json_tricks.dumps([dataclasses.asdict(o) for o in self.seen], indent=4))  # pyright: ignore reportArgumentType
             await f.truncate()

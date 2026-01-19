@@ -116,7 +116,6 @@ def render_news_item(item: NewsItem) -> Embed:
     embed = Embed(
         title=item.book_name,
         url=item.review_link or item.book_link,
-        timestamp=item.timestamp,
     )
     embed.set_thumbnail(url=item.book_cover_url)
     embed.set_author(
@@ -128,6 +127,8 @@ def render_news_item(item: NewsItem) -> Embed:
     description = f"""by [{item.author_name}]({item.author_link})"""
     if item.rating:
         description += f"""\n{item.rating} {"⭐" * round(item.rating)}"""
+    if item.timestamp:
+        description += f"\n<t:{int(item.timestamp.timestamp())}:R>"
 
     embed.description = description
     return embed

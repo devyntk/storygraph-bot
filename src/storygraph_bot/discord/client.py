@@ -17,6 +17,7 @@ class StorygraphBot(discord.Bot):
         self.check_for_new_items.add_exception_type(FlareError)
 
     async def close(self):
+        self.check_for_new_items.cancel()
         await self.storygraph.close()
         await super().close()
 
@@ -34,7 +35,6 @@ class StorygraphBot(discord.Bot):
 
     @check_for_new_items.before_loop
     async def before_my_task(self):
-        print("here")
         await self.storygraph.setup()
         await self.storygraph.log_in(SETTINGS.storygraph_email, SETTINGS.storygraph_password)
-        await self.wait_until_ready()  # wait until the bot logs in
+        await self.wait_until_ready()

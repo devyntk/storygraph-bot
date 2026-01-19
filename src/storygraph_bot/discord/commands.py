@@ -14,6 +14,8 @@ async def on_ready():
 
 
 @bot.slash_command()
-async def follow(ctx: discord.ApplicationContext):
-    await ctx.respond("Hello!")
+async def follow(ctx: discord.ApplicationContext, user: str):
+    res = await bot.storygraph.attempt_follow(user.strip())
+    print(res)
+    await ctx.respond(str(res))
 
