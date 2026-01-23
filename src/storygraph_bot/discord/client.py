@@ -6,6 +6,7 @@ from storygraph_bot.newness_cache import NewnessCache
 from storygraph_bot.news_parser import render_news_item
 from storygraph_bot.settings import SETTINGS
 from storygraph_bot.storygraph_client import StorygraphClient
+from storygraph_bot.util import TagFindError
 
 
 class StorygraphBot(discord.Bot):
@@ -15,12 +16,12 @@ class StorygraphBot(discord.Bot):
         self.newness = NewnessCache()
         self.check_for_new_items.start()
         self.check_for_new_items.add_exception_type(FlareError)
+        self.check_for_new_items.add_exception_type(TagFindError)
 
     async def close(self):
         self.check_for_new_items.cancel()
         await self.storygraph.close()
         await super().close()
-
 
     @tasks.loop(seconds=60)
     async def check_for_new_items(self):
@@ -32,9 +33,10 @@ class StorygraphBot(discord.Bot):
         async for item in self.newness.filter_seen(news):
             await channel.send(embed=render_news_item(item))
 
-
     @check_for_new_items.before_loop
     async def before_my_task(self):
         await self.storygraph.setup()
-        await self.storygraph.log_in(SETTINGS.storygraph_email, SETTINGS.storygraph_password)
+        await self.storygraph.log_in(
+            SETTINGS.storygraph_email, SETTINGS.storygraph_password
+        )
         await self.wait_until_ready()
