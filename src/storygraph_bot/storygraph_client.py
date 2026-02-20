@@ -69,10 +69,14 @@ class StorygraphClient:
 
     async def get_community_activity(self) -> list[NewsItem]:
         self.logger.info("Fetching community activity")
-        community = await self.client.get("https://app.thestorygraph.com/community")
-        news_feed = community.body.find(class_="news-feed-item-panes")
-        assert assert_tag(news_feed)
-        return [parse_news_item(child) for child in news_feed.find_all(recursive=False)]
+        try:
+            community = await self.client.get("https://app.thestorygraph.com/community")
+            news_feed = community.body.find(class_="news-feed-item-panes")
+            assert assert_tag(news_feed)
+            return [parse_news_item(child) for child in news_feed.find_all(recursive=False)]
+        except TagFindError:
+            self.logger.exception("Could not find tag")
+        return []
 
     async def attempt_follow(self, username: str) -> tuple[FollowResult, str | None]:
         profile = await self.client.get(f"https://app.thestorygraph.com/profile/{username}")
