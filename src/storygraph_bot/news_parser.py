@@ -12,7 +12,7 @@ from storygraph_bot.util import assert_tag, canonicalize_url
 
 logger = getLogger(__name__)
 
-timestamp_re = re.compile(r"~(\d+[dmsw])")
+timestamp_re = re.compile(r"~(\d+[dhmsw])")
 
 @dataclass(unsafe_hash=True)
 class NewsItem:
